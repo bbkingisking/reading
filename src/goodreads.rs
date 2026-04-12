@@ -3,6 +3,7 @@ use chrono::Utc;
 use serde::Deserialize;
 use thiserror::Error;
 use url::Url;
+use html_escape::decode_html_entities;
 
 #[derive(Debug, Error)]
 pub enum GoodreadsError {
@@ -77,11 +78,11 @@ pub fn fetch_from_goodreads(url: &str) -> Result<Book, GoodreadsError> {
         .author
         .as_ref()
         .and_then(|authors| authors.first())
-        .map(|a| a.name.clone())
+        .map(|a| decode_html_entities(&a.name).into_owned())
         .unwrap_or_else(|| "Unknown".into());
 
     Ok(Book {
-        title: gr.name,
+        title: decode_html_entities(&gr.name).into_owned(),
         author,
         pages: gr.number_of_pages,
         publish_date: None,
