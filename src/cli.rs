@@ -5,7 +5,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 #[command(name = "reading", about = "Personal reading tracker", arg_required_else_help = true, version)]
 pub struct Cli {
     /// Path to the JSON store file
-    #[arg(long, short, default_value = "~/.reading/books.json")]
+    #[arg(long, short)]
     pub store: String,
 
     #[command(subcommand)]
