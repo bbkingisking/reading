@@ -476,6 +476,7 @@ dependencies = [
  "serde_json",
  "thiserror",
  "ureq",
+ "url",
 ]
 
 [[package]]
