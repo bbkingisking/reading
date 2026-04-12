@@ -65,6 +65,8 @@ pub enum UpdateField {
     Rating,
     Status,
     Notes,
+    Title,
+    Author,
     #[value(name = "publish-date")]
     PublishDate,
 }

@@ -164,6 +164,12 @@ fn run(cli: Cli) -> Result<()> {
                 UpdateField::Notes => {
                     book.notes.push(value);
                 }
+                UpdateField::Title => {
+                    book.title = value;
+                }
+                UpdateField::Author => {
+                    book.author = value;
+                }
                 UpdateField::PublishDate => {
                     book.publish_date = Some(value);
                 }
