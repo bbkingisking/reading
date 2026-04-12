@@ -97,7 +97,6 @@ fn run(cli: Cli) -> Result<()> {
             // Try to parse as URL first
             let (key, book) = if let Ok(_) = Url::parse(&input) {
                 // It's a URL, treat as Goodreads
-                eprintln!("Fetching from Goodreads...");
                 let book = goodreads::fetch_from_goodreads(&input)?;
                 let key = book.goodreads_id.clone().unwrap_or_else(|| input.clone());
                 (key, book)
@@ -106,7 +105,6 @@ fn run(cli: Cli) -> Result<()> {
                 if store.contains_key(&input) {
                     return Err(AppError::AlreadyExists(input));
                 }
-                eprintln!("Fetching ISBN {} from OpenLibrary...", input);
                 let book = openlibrary::fetch_from_openlibrary(&input)?;
                 (input.clone(), book)
             };
@@ -115,10 +113,8 @@ fn run(cli: Cli) -> Result<()> {
                 return Err(AppError::AlreadyExists(key));
             }
 
-            let title = book.title.clone();
             store.insert(key, book);
             save_store(&store, &store_path)?;
-            eprintln!("Added: {}", title);
         }
         Command::Done { isbn, rating } => {
             if let Some(r) = rating {
@@ -135,9 +131,7 @@ fn run(cli: Cli) -> Result<()> {
             if let Some(r) = rating {
                 book.rating = Some(r);
             }
-            let title = book.title.clone();
             save_store(&store, &store_path)?;
-            eprintln!("Marked as read: {}", title);
         }
         Command::Start { isbn } => {
             let mut store = load_store(&store_path)?;
@@ -146,9 +140,7 @@ fn run(cli: Cli) -> Result<()> {
                 .ok_or_else(|| AppError::NotFound(isbn.clone()))?;
             book.status = Status::Reading;
             book.date_started = Some(Utc::now());
-            let title = book.title.clone();
             save_store(&store, &store_path)?;
-            eprintln!("Started reading: {}", title);
         }
         Command::Update { isbn, field, value } => {
             let mut store = load_store(&store_path)?;
@@ -177,7 +169,6 @@ fn run(cli: Cli) -> Result<()> {
                 }
             }
             save_store(&store, &store_path)?;
-            eprintln!("Updated {} {:?}", isbn, field);
         }
         Command::Abandon { isbn } => {
             let mut store = load_store(&store_path)?;
@@ -185,9 +176,7 @@ fn run(cli: Cli) -> Result<()> {
                 .get_mut(&isbn)
                 .ok_or_else(|| AppError::NotFound(isbn.clone()))?;
             book.status = Status::Abandoned;
-            let title = book.title.clone();
             save_store(&store, &store_path)?;
-            eprintln!("Abandoned: {}", title);
         }
         Command::Show { isbn } => {
             let store = load_store(&store_path)?;
