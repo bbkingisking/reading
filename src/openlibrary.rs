@@ -88,6 +88,7 @@ pub fn fetch_from_openlibrary(isbn: &str) -> Result<Book, OpenLibraryError> {
         pages: d.number_of_pages,
         publish_date: d.publish_date.clone(),
         subjects: d.subjects.clone(),
+        isbn: Some(isbn.to_string()),
         goodreads_id,
         status: Status::Unread,
         date_added: Utc::now(),

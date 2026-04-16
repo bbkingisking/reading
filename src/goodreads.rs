@@ -26,6 +26,7 @@ pub struct GoodreadsJsonLd {
     pub name: String,
     #[serde(rename = "numberOfPages")]
     pub number_of_pages: Option<u32>,
+    pub isbn: Option<String>,
     pub author: Option<Vec<GoodreadsAuthor>>,
 }
 
@@ -87,6 +88,7 @@ pub fn fetch_from_goodreads(url: &str) -> Result<Book, GoodreadsError> {
         pages: gr.number_of_pages,
         publish_date: None,
         subjects: None,
+        isbn: gr.isbn,
         goodreads_id: Some(goodreads_id),
         status: Status::Unread,
         date_added: Utc::now(),

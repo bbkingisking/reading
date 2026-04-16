@@ -30,6 +30,7 @@ pub struct Book {
     pub pages: Option<u32>,
     pub publish_date: Option<String>,
     pub subjects: Option<Vec<String>>,
+    pub isbn: Option<String>,
     pub goodreads_id: Option<String>,
     pub status: Status,
     pub date_added: DateTime<Utc>,
