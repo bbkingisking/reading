@@ -186,6 +186,13 @@ fn run(cli: Cli) -> Result<()> {
                 serde_json::to_string_pretty(&BookView { id: &id, book })?
             );
         }
+        Command::Share { id } => {
+            let store = load_store(&store_path)?;
+            if !store.contains_key(&id) {
+                return Err(AppError::NotFound(id));
+            }
+            println!("https://www.goodreads.com/book/show/{}", id);
+        }
         Command::Ls { status } => {
             let store = load_store(&store_path)?;
             for (id, book) in &store {

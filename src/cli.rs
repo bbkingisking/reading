@@ -51,6 +51,11 @@ pub enum Command {
         /// ID of the book (its Goodreads ID)
         id: String,
     },
+    /// Print the book's Goodreads URL
+    Share {
+        /// ID of the book (its Goodreads ID)
+        id: String,
+    },
     /// List books
     #[command(alias = "list")]
     Ls {
