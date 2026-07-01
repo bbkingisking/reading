@@ -195,12 +195,15 @@ fn run(cli: Cli) -> Result<()> {
         }
         Command::Ls { status } => {
             let store = load_store(&store_path)?;
-            for (id, book) in &store {
-                if let Some(ref filter) = status {
-                    if *filter != book.status {
-                        continue;
-                    }
-                }
+            let mut books: Vec<(&String, &Book)> = store
+                .iter()
+                .filter(|(_, book)| match &status {
+                    Some(filter) => *filter == book.status,
+                    None => true,
+                })
+                .collect();
+            books.sort_by(|a, b| b.1.date_added.cmp(&a.1.date_added));
+            for (id, book) in books {
                 println!("{} - {} - {} - {}", book.title, book.author, book.status, id);
             }
         }
