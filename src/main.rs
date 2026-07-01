@@ -2,7 +2,7 @@ mod cli;
 mod goodreads;
 mod models;
 
-use std::collections::BTreeMap;
+use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
@@ -10,6 +10,7 @@ use std::process;
 
 use chrono::Utc;
 use clap::{Parser, ValueEnum};
+use serde::ser::SerializeMap;
 use serde::Serialize;
 use thiserror::Error;
 
@@ -53,7 +54,7 @@ fn expand_tilde(path: &str) -> Result<PathBuf> {
     }
 }
 
-type Store = BTreeMap<String, Book>;
+type Store = HashMap<String, Book>;
 
 fn load_store(path: &PathBuf) -> Result<Store> {
     let path = path.clone();
@@ -67,12 +68,29 @@ fn load_store(path: &PathBuf) -> Result<Store> {
     Ok(serde_json::from_str(&data)?)
 }
 
+struct SortedEntries<'a>(Vec<(&'a String, &'a Book)>);
+
+impl<'a> Serialize for SortedEntries<'a> {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut map = serializer.serialize_map(Some(self.0.len()))?;
+        for (k, v) in &self.0 {
+            map.serialize_entry(k, v)?;
+        }
+        map.end()
+    }
+}
+
 fn save_store(store: &Store, path: &PathBuf) -> Result<()> {
     let path = path.clone();
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
-    let json = serde_json::to_string_pretty(store)?;
+    let mut entries: Vec<(&String, &Book)> = store.iter().collect();
+    entries.sort_by(|a, b| b.1.date_added.cmp(&a.1.date_added));
+    let json = serde_json::to_string_pretty(&SortedEntries(entries))?;
     let tmp = path.with_extension("tmp");
     {
         let mut f = fs::File::create(&tmp)?;
