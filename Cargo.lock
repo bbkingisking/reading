@@ -482,6 +482,7 @@ dependencies = [
  "chrono",
  "clap",
  "html-escape",
+ "libc",
  "serde",
  "serde_json",
  "thiserror",

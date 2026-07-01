@@ -12,3 +12,6 @@ chrono = { version = "0.4", features = ["serde"] }
 thiserror = "2"
 url = "2.5.8"
 html-escape = "0.2.13"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
