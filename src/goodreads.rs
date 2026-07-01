@@ -58,7 +58,7 @@ fn extract_goodreads_id(url: &str) -> Result<String, GoodreadsError> {
     }
 }
 
-pub fn fetch_from_goodreads(url: &str) -> Result<Book, GoodreadsError> {
+pub fn fetch_from_goodreads(url: &str) -> Result<(String, Book), GoodreadsError> {
     let goodreads_id = extract_goodreads_id(url)?;
 
     let body = ureq::get(url).call()?.into_string()?;
@@ -82,19 +82,20 @@ pub fn fetch_from_goodreads(url: &str) -> Result<Book, GoodreadsError> {
         .map(|a| decode_html_entities(&a.name).into_owned())
         .unwrap_or_else(|| "Unknown".into());
 
-    Ok(Book {
+    let book = Book {
         title: decode_html_entities(&gr.name).into_owned(),
         author,
         pages: gr.number_of_pages,
         publish_date: None,
         subjects: None,
         isbn: gr.isbn,
-        goodreads_id: Some(goodreads_id),
         status: Status::Unread,
         date_added: Utc::now(),
         date_started: None,
         date_finished: None,
         rating: None,
         notes: Vec::new(),
-    })
+    };
+
+    Ok((goodreads_id, book))
 }

@@ -1,7 +1,6 @@
 mod cli;
 mod goodreads;
 mod models;
-mod openlibrary;
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -11,8 +10,8 @@ use std::process;
 
 use chrono::Utc;
 use clap::{Parser, ValueEnum};
+use serde::Serialize;
 use thiserror::Error;
-use url::Url;
 
 use cli::{Cli, Command, UpdateField};
 use models::{Book, Status};
@@ -25,13 +24,11 @@ enum AppError {
     Io(#[from] std::io::Error),
     #[error("JSON error: {0}")]
     Json(#[from] serde_json::Error),
-    #[error("OpenLibrary error: {0}")]
-    OpenLibrary(#[from] openlibrary::OpenLibraryError),
     #[error("Goodreads error: {0}")]
     Goodreads(#[from] goodreads::GoodreadsError),
-    #[error("book with ISBN {0} already exists")]
+    #[error("book with id {0} already exists")]
     AlreadyExists(String),
-    #[error("book with ISBN {0} not found")]
+    #[error("book with id {0} not found")]
     NotFound(String),
     #[error("invalid rating: {0} (must be 1-5)")]
     InvalidRating(u8),
@@ -91,23 +88,10 @@ fn save_store(store: &Store, path: &PathBuf) -> Result<()> {
 fn run(cli: Cli) -> Result<()> {
     let store_path = expand_tilde(&cli.store)?;
     match cli.command {
-        Command::Add { input } => {
+        Command::Add { url } => {
             let mut store = load_store(&store_path)?;
 
-            // Try to parse as URL first
-            let (key, book) = if let Ok(_) = Url::parse(&input) {
-                // It's a URL, treat as Goodreads
-                let book = goodreads::fetch_from_goodreads(&input)?;
-                let key = book.goodreads_id.clone().unwrap_or_else(|| input.clone());
-                (key, book)
-            } else {
-                // It's not a URL, treat as ISBN
-                if store.contains_key(&input) {
-                    return Err(AppError::AlreadyExists(input));
-                }
-                let book = openlibrary::fetch_from_openlibrary(&input)?;
-                (input.clone(), book)
-            };
+            let (key, book) = goodreads::fetch_from_goodreads(&url)?;
 
             if store.contains_key(&key) {
                 return Err(AppError::AlreadyExists(key));
@@ -116,7 +100,7 @@ fn run(cli: Cli) -> Result<()> {
             store.insert(key, book);
             save_store(&store, &store_path)?;
         }
-        Command::Done { isbn, rating } => {
+        Command::Done { id, rating } => {
             if let Some(r) = rating {
                 if r < 1 || r > 5 {
                     return Err(AppError::InvalidRating(r));
@@ -124,8 +108,8 @@ fn run(cli: Cli) -> Result<()> {
             }
             let mut store = load_store(&store_path)?;
             let book = store
-                .get_mut(&isbn)
-                .ok_or_else(|| AppError::NotFound(isbn.clone()))?;
+                .get_mut(&id)
+                .ok_or_else(|| AppError::NotFound(id.clone()))?;
             book.status = Status::Read;
             book.date_finished = Some(Utc::now());
             if let Some(r) = rating {
@@ -133,20 +117,20 @@ fn run(cli: Cli) -> Result<()> {
             }
             save_store(&store, &store_path)?;
         }
-        Command::Start { isbn } => {
+        Command::Start { id } => {
             let mut store = load_store(&store_path)?;
             let book = store
-                .get_mut(&isbn)
-                .ok_or_else(|| AppError::NotFound(isbn.clone()))?;
+                .get_mut(&id)
+                .ok_or_else(|| AppError::NotFound(id.clone()))?;
             book.status = Status::Reading;
             book.date_started = Some(Utc::now());
             save_store(&store, &store_path)?;
         }
-        Command::Update { isbn, field, value } => {
+        Command::Update { id, field, value } => {
             let mut store = load_store(&store_path)?;
             let book = store
-                .get_mut(&isbn)
-                .ok_or_else(|| AppError::NotFound(isbn.clone()))?;
+                .get_mut(&id)
+                .ok_or_else(|| AppError::NotFound(id.clone()))?;
             match field {
                 UpdateField::Rating => {
                     let r: u8 = value
@@ -176,33 +160,41 @@ fn run(cli: Cli) -> Result<()> {
             }
             save_store(&store, &store_path)?;
         }
-        Command::Abandon { isbn } => {
+        Command::Abandon { id } => {
             let mut store = load_store(&store_path)?;
             let book = store
-                .get_mut(&isbn)
-                .ok_or_else(|| AppError::NotFound(isbn.clone()))?;
+                .get_mut(&id)
+                .ok_or_else(|| AppError::NotFound(id.clone()))?;
             book.status = Status::Abandoned;
             save_store(&store, &store_path)?;
         }
-        Command::Show { isbn } => {
+        Command::Show { id } => {
             let store = load_store(&store_path)?;
             let book = store
-                .get(&isbn)
-                .ok_or_else(|| AppError::NotFound(isbn.clone()))?;
-            println!("{}", serde_json::to_string_pretty(book)?);
+                .get(&id)
+                .ok_or_else(|| AppError::NotFound(id.clone()))?;
+
+            #[derive(Serialize)]
+            struct BookView<'a> {
+                id: &'a str,
+                #[serde(flatten)]
+                book: &'a Book,
+            }
+
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&BookView { id: &id, book })?
+            );
         }
         Command::Ls { status } => {
             let store = load_store(&store_path)?;
-            for (_isbn, book) in &store {
+            for (id, book) in &store {
                 if let Some(ref filter) = status {
                     if *filter != book.status {
                         continue;
                     }
                 }
-                println!(
-                    "{} - {} - {} - {}",
-                    book.title, book.author, book.status, _isbn
-                );
+                println!("{} - {} - {} - {}", book.title, book.author, book.status, id);
             }
         }
     }
