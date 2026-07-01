@@ -10,7 +10,7 @@ pub enum GoodreadsError {
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
     #[error("HTTP error: {0}")]
-    Http(#[from] ureq::Error),
+    Http(#[from] Box<ureq::Error>),
     #[error("JSON error: {0}")]
     Json(#[from] serde_json::Error),
     #[error("invalid Goodreads URL: {0}")]
@@ -61,7 +61,10 @@ fn extract_goodreads_id(url: &str) -> Result<String, GoodreadsError> {
 pub fn fetch_from_goodreads(url: &str) -> Result<(String, Book), GoodreadsError> {
     let goodreads_id = extract_goodreads_id(url)?;
 
-    let body = ureq::get(url).call()?.into_string()?;
+    let body = ureq::get(url)
+        .call()
+        .map_err(Box::new)?
+        .into_string()?;
 
     // Extract JSON-LD data
     let json_ld_start = body
