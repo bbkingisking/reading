@@ -19,6 +19,8 @@ pub enum GoodreadsError {
     IdNotFound(String),
     #[error("could not find JSON-LD data in Goodreads page")]
     JsonLdNotFound,
+    #[error("Goodreads search for '{0}' was inconclusive; please provide a direct Goodreads URL instead")]
+    SearchInconclusive(String),
 }
 
 #[derive(Debug, Deserialize)]
@@ -56,6 +58,30 @@ fn extract_goodreads_id(url: &str) -> Result<String, GoodreadsError> {
     } else {
         Err(GoodreadsError::IdNotFound(url.to_string()))
     }
+}
+
+/// Resolve a query (e.g. an ISBN) to a Goodreads book URL by hitting
+/// Goodreads search: when a query has exactly one match, Goodreads redirects
+/// straight to the book page. Anything else (an ambiguous or empty result
+/// set, which Goodreads reports as a 200 search page) is inconclusive.
+pub fn resolve_search_url(query: &str) -> Result<String, GoodreadsError> {
+    let mut search_url = Url::parse("https://www.goodreads.com/search")
+        .expect("hardcoded URL is valid");
+    search_url.query_pairs_mut().append_pair("q", query);
+
+    let agent = ureq::AgentBuilder::new().redirects(0).build();
+    let response = agent
+        .get(search_url.as_str())
+        .call()
+        .map_err(Box::new)?;
+
+    if (300..400).contains(&response.status())
+        && let Some(location) = response.header("Location")
+    {
+        return Ok(location.to_string());
+    }
+
+    Err(GoodreadsError::SearchInconclusive(query.to_string()))
 }
 
 pub fn fetch_from_goodreads(url: &str) -> Result<(String, Book), GoodreadsError> {

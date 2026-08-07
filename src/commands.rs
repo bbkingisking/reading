@@ -1,6 +1,7 @@
 use chrono::Utc;
 use clap::ValueEnum;
 use serde::Serialize;
+use url::Url;
 
 use crate::cli::{Cli, Command, UpdateField};
 use crate::error::{AppError, Result};
@@ -11,9 +12,13 @@ use crate::store::{expand_tilde, load_store, save_store};
 pub fn run(cli: Cli) -> Result<()> {
     let store_path = expand_tilde(&cli.store)?;
     match cli.command {
-        Command::Add { url } => {
+        Command::Add { query } => {
             let mut store = load_store(&store_path)?;
 
+            let url = match Url::parse(&query) {
+                Ok(_) => query,
+                Err(_) => goodreads::resolve_search_url(&query)?,
+            };
             let (key, book) = goodreads::fetch_from_goodreads(&url)?;
 
             if store.contains_key(&key) {
