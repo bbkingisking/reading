@@ -20,6 +20,8 @@ pub enum AppError {
     InvalidRatingValue(String),
     #[error("invalid status: '{0}' (use unread/reading/read/abandoned)")]
     InvalidStatus(String),
+    #[error("'{0}' is neither a valid URL nor a valid ISBN; please pass a Goodreads URL or an ISBN")]
+    InvalidAddQuery(String),
     #[error("HOME environment variable not set")]
     HomeNotFound,
 }

@@ -15,9 +15,15 @@ pub fn run(cli: Cli) -> Result<()> {
         Command::Add { query } => {
             let mut store = load_store(&store_path)?;
 
-            let url = match Url::parse(&query) {
-                Ok(_) => query,
-                Err(_) => goodreads::resolve_search_url(&query)?,
+            let url = if Url::parse(&query).is_ok() {
+                query
+            } else if let Ok(isbn) = query.parse::<isbn::Isbn>() {
+                // Goodreads search only redirects for unhyphenated ISBNs, so
+                // normalize via Isbn's Display impl rather than passing the
+                // raw (possibly hyphenated) query through.
+                goodreads::resolve_search_url(&isbn.to_string())?
+            } else {
+                return Err(AppError::InvalidAddQuery(query));
             };
             let (key, book) = goodreads::fetch_from_goodreads(&url)?;
 
