@@ -14,7 +14,7 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Command {
-    /// Add a book from its Goodreads URL, or by ISBN (resolved via Goodreads search)
+    /// Add a book from its Goodreads URL, or by ISBN
     Add {
         /// Goodreads URL, or an ISBN-10/ISBN-13
         query: String,
