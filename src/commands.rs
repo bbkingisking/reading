@@ -28,6 +28,27 @@ fn parse_date_until(s: &str) -> Result<DateTime<Utc>> {
     Ok(next_day.and_hms_opt(0, 0, 0).unwrap().and_utc())
 }
 
+/// Returns `true` when `book` has a date field that falls within the optional
+/// `[since, until)` bounds. Missing values are treated as out of range.
+fn filter_by_date_range<F>(
+    book: &Book,
+    since: Option<DateTime<Utc>>,
+    until: Option<DateTime<Utc>>,
+    field: F,
+) -> bool
+where
+    F: Fn(&Book) -> Option<DateTime<Utc>>,
+{
+    let value = field(book);
+    if let Some(since) = since && !value.is_some_and(|d| d >= since) {
+        return false;
+    }
+    if let Some(until) = until && !value.is_some_and(|d| d < until) {
+        return false;
+    }
+    true
+}
+
 pub fn run(cli: Cli) -> Result<()> {
     let store_path = expand_tilde(&cli.store)?;
     match cli.command {
@@ -150,23 +171,32 @@ pub fn run(cli: Cli) -> Result<()> {
             status,
             read_since,
             read_until,
+            started_since,
+            started_until,
+            added_since,
+            added_until,
         } => {
             let store = load_store(&store_path)?;
-            let since = read_since.as_deref().map(parse_date_since).transpose()?;
-            let until = read_until.as_deref().map(parse_date_until).transpose()?;
+            let read_since = read_since.as_deref().map(parse_date_since).transpose()?;
+            let read_until = read_until.as_deref().map(parse_date_until).transpose()?;
+            let started_since = started_since.as_deref().map(parse_date_since).transpose()?;
+            let started_until = started_until.as_deref().map(parse_date_until).transpose()?;
+            let added_since = added_since.as_deref().map(parse_date_since).transpose()?;
+            let added_until = added_until.as_deref().map(parse_date_until).transpose()?;
             let mut books: Vec<(&String, &Book)> = store
                 .iter()
                 .filter(|(_, book)| match &status {
                     Some(filter) => *filter == book.status,
                     None => true,
                 })
-                .filter(|(_, book)| match since {
-                    Some(since) => book.date_finished.is_some_and(|d| d >= since),
-                    None => true,
+                .filter(|(_, book)| {
+                    filter_by_date_range(book, read_since, read_until, |b| b.date_finished)
                 })
-                .filter(|(_, book)| match until {
-                    Some(until) => book.date_finished.is_some_and(|d| d < until),
-                    None => true,
+                .filter(|(_, book)| {
+                    filter_by_date_range(book, started_since, started_until, |b| b.date_started)
+                })
+                .filter(|(_, book)| {
+                    filter_by_date_range(book, added_since, added_until, |b| Some(b.date_added))
                 })
                 .collect();
             books.sort_by(|a, b| b.1.date_added.cmp(&a.1.date_added));
@@ -217,6 +247,88 @@ mod tests {
         assert!(matches!(
             parse_date_until("not-a-date"),
             Err(AppError::InvalidDate(_))
+        ));
+    }
+
+    fn dt(s: &str) -> DateTime<Utc> {
+        DateTime::parse_from_rfc3339(s).unwrap().to_utc()
+    }
+
+    fn book_with_dates(
+        date_added: DateTime<Utc>,
+        date_started: Option<DateTime<Utc>>,
+        date_finished: Option<DateTime<Utc>>,
+    ) -> Book {
+        Book {
+            title: "Title".to_string(),
+            author: "Author".to_string(),
+            pages: None,
+            publish_date: None,
+            subjects: None,
+            isbn: None,
+            status: Status::Unread,
+            date_added,
+            date_started,
+            date_finished,
+            rating: None,
+            notes: vec![],
+        }
+    }
+
+    #[test]
+    fn filter_by_date_range_passes_when_no_bounds_are_given() {
+        let book = book_with_dates(dt("2026-01-15T00:00:00Z"), None, None);
+        assert!(filter_by_date_range(&book, None, None, |b| Some(b.date_added)));
+    }
+
+    #[test]
+    fn filter_by_date_range_respects_since_bound() {
+        let book = book_with_dates(dt("2026-01-15T12:00:00Z"), None, None);
+        assert!(filter_by_date_range(
+            &book,
+            Some(dt("2026-01-15T00:00:00Z")),
+            None,
+            |b| Some(b.date_added)
+        ));
+        assert!(!filter_by_date_range(
+            &book,
+            Some(dt("2026-01-16T00:00:00Z")),
+            None,
+            |b| Some(b.date_added)
+        ));
+    }
+
+    #[test]
+    fn filter_by_date_range_respects_until_bound() {
+        let book = book_with_dates(dt("2026-01-15T12:00:00Z"), None, None);
+        assert!(filter_by_date_range(
+            &book,
+            None,
+            Some(dt("2026-01-16T00:00:00Z")),
+            |b| Some(b.date_added)
+        ));
+        assert!(!filter_by_date_range(
+            &book,
+            None,
+            Some(dt("2026-01-15T00:00:00Z")),
+            |b| Some(b.date_added)
+        ));
+    }
+
+    #[test]
+    fn filter_by_date_range_treats_missing_date_as_out_of_range() {
+        let book = book_with_dates(dt("2026-01-15T00:00:00Z"), None, None);
+        assert!(!filter_by_date_range(
+            &book,
+            Some(dt("2026-01-01T00:00:00Z")),
+            None,
+            |b| b.date_started
+        ));
+        assert!(!filter_by_date_range(
+            &book,
+            None,
+            Some(dt("2027-01-01T00:00:00Z")),
+            |b| b.date_started
         ));
     }
 }

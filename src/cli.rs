@@ -68,6 +68,18 @@ pub enum Command {
         /// Only include books finished on/before this date (YYYY-MM-DD)
         #[arg(long)]
         read_until: Option<String>,
+        /// Only include books started on/after this date (YYYY-MM-DD)
+        #[arg(long)]
+        started_since: Option<String>,
+        /// Only include books started on/before this date (YYYY-MM-DD)
+        #[arg(long)]
+        started_until: Option<String>,
+        /// Only include books added on/after this date (YYYY-MM-DD)
+        #[arg(long)]
+        added_since: Option<String>,
+        /// Only include books added on/before this date (YYYY-MM-DD)
+        #[arg(long)]
+        added_until: Option<String>,
     },
 }
 
