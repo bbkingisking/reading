@@ -62,6 +62,12 @@ pub enum Command {
         /// Filter by status
         #[arg(long)]
         status: Option<Status>,
+        /// Only include books finished on/after this date (YYYY-MM-DD)
+        #[arg(long)]
+        read_since: Option<String>,
+        /// Only include books finished on/before this date (YYYY-MM-DD)
+        #[arg(long)]
+        read_until: Option<String>,
     },
 }
 
