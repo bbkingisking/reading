@@ -2,11 +2,16 @@ use crate::models::Status;
 use clap::{Parser, Subcommand, ValueEnum};
 
 #[derive(Parser)]
-#[command(name = "reading", about = "Personal reading tracker", arg_required_else_help = true, version)]
+#[command(
+    name = "reading",
+    about = "Personal reading tracker",
+    arg_required_else_help = true,
+    version
+)]
 pub struct Cli {
-    /// Path to the YAML store file
-    #[arg(long, short)]
-    pub store: String,
+    /// Path to the YAML store file (required for book commands)
+    #[arg(long, short, value_hint = clap::ValueHint::FilePath)]
+    pub store: Option<String>,
 
     #[command(subcommand)]
     pub command: Command,
@@ -14,6 +19,18 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Command {
+    #[command(name = "__complete-books", hide = true)]
+    CompleteBooks {
+        #[arg(long)]
+        command: Option<String>,
+        #[arg(default_value = "")]
+        prefix: String,
+    },
+    /// Print shell completion script
+    Completions {
+        /// Shell to generate completions for
+        shell: clap_complete::Shell,
+    },
     /// Add a book from its Goodreads URL, or by ISBN
     Add {
         /// Goodreads URL, or an ISBN-10/ISBN-13

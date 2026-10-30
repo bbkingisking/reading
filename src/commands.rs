@@ -3,7 +3,7 @@ use clap::ValueEnum;
 use serde::Serialize;
 use url::Url;
 
-use crate::cli::{Cli, Command, UpdateField};
+use crate::cli::{Command, UpdateField};
 use crate::error::{AppError, Result};
 use crate::goodreads;
 use crate::models::{Book, Status};
@@ -49,9 +49,12 @@ where
     true
 }
 
-pub fn run(cli: Cli) -> Result<()> {
-    let store_path = expand_tilde(&cli.store)?;
-    match cli.command {
+pub fn run(command: Command, store: &str) -> Result<()> {
+    let store_path = expand_tilde(store)?;
+    match command {
+        Command::Completions { .. } | Command::CompleteBooks { .. } => {
+            unreachable!("completions are handled before opening the store")
+        }
         Command::Add { query } => {
             let mut store = load_store(&store_path)?;
 
