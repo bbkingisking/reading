@@ -25,6 +25,7 @@ impl fmt::Display for Status {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Book {
+    pub id: String,
     pub title: String,
     pub author: String,
     pub pages: Option<u32>,

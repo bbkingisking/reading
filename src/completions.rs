@@ -43,30 +43,30 @@ pub fn books(path: &str, prefix: &str, command: Option<&str>) -> Result<()> {
     let prefix = prefix.to_lowercase();
     let mut entries: Vec<_> = store
         .iter()
-        .filter(|(_, book)| match command {
+        .filter(|book| match command {
             Some("done") => book.status == Status::Reading,
             Some("start") => book.status == Status::Unread,
             _ => true,
         })
-        .filter(|(id, book)| {
-            id.starts_with(&prefix)
+        .filter(|book| {
+            book.id.starts_with(&prefix)
                 || book.title.to_lowercase().contains(&prefix)
                 || book.author.to_lowercase().contains(&prefix)
         })
         .collect();
-    entries.sort_by(|(id_a, a), (id_b, b)| {
+    entries.sort_by(|a, b| {
         a.title
             .to_lowercase()
             .cmp(&b.title.to_lowercase())
-            .then(id_a.cmp(id_b))
+            .then(a.id.cmp(&b.id))
     });
     let mut out = io::stdout().lock();
-    for (id, book) in entries {
+    for book in entries {
         writeln!(
             out,
             "{}\t{} — {} — {}",
-            single_line(id),
-            single_line(id),
+            single_line(&book.id),
+            single_line(&book.id),
             single_line(&book.title),
             single_line(&book.author)
         )?;

@@ -14,6 +14,8 @@ pub enum AppError {
     Goodreads(#[from] goodreads::GoodreadsError),
     #[error("book with id {0} already exists")]
     AlreadyExists(String),
+    #[error("book entry is missing an id")]
+    MissingBookId,
     #[error("book with id {0} not found")]
     NotFound(String),
     #[error("invalid rating: {0} (must be 1-5)")]
@@ -24,7 +26,9 @@ pub enum AppError {
     InvalidStatus(String),
     #[error("invalid date '{0}' (expected YYYY-MM-DD)")]
     InvalidDate(String),
-    #[error("'{0}' is neither a valid URL nor a valid ISBN; please pass a Goodreads URL or an ISBN")]
+    #[error(
+        "'{0}' is neither a valid URL nor a valid ISBN; please pass a Goodreads URL or an ISBN"
+    )]
     InvalidAddQuery(String),
     #[error("HOME environment variable not set")]
     HomeNotFound,

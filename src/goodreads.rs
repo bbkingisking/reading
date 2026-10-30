@@ -1,9 +1,9 @@
 use crate::models::{Book, Status};
 use chrono::Utc;
+use html_escape::decode_html_entities;
 use serde::Deserialize;
 use thiserror::Error;
 use url::Url;
-use html_escape::decode_html_entities;
 
 #[derive(Debug, Error)]
 pub enum GoodreadsError {
@@ -19,7 +19,9 @@ pub enum GoodreadsError {
     IdNotFound(String),
     #[error("could not find JSON-LD data in Goodreads page")]
     JsonLdNotFound,
-    #[error("Goodreads search for '{0}' was inconclusive; please provide a direct Goodreads URL instead")]
+    #[error(
+        "Goodreads search for '{0}' was inconclusive; please provide a direct Goodreads URL instead"
+    )]
     SearchInconclusive(String),
 }
 
@@ -40,8 +42,7 @@ pub struct GoodreadsAuthor {
 fn extract_goodreads_id(url: &str) -> Result<String, GoodreadsError> {
     let parsed = Url::parse(url).map_err(|_| GoodreadsError::InvalidUrl(url.to_string()))?;
 
-    if parsed.host_str() != Some("www.goodreads.com")
-        && parsed.host_str() != Some("goodreads.com")
+    if parsed.host_str() != Some("www.goodreads.com") && parsed.host_str() != Some("goodreads.com")
     {
         return Err(GoodreadsError::InvalidUrl(url.to_string()));
     }
@@ -65,15 +66,12 @@ fn extract_goodreads_id(url: &str) -> Result<String, GoodreadsError> {
 /// straight to the book page. Anything else (an ambiguous or empty result
 /// set, which Goodreads reports as a 200 search page) is inconclusive.
 pub fn resolve_search_url(query: &str) -> Result<String, GoodreadsError> {
-    let mut search_url = Url::parse("https://www.goodreads.com/search")
-        .expect("hardcoded URL is valid");
+    let mut search_url =
+        Url::parse("https://www.goodreads.com/search").expect("hardcoded URL is valid");
     search_url.query_pairs_mut().append_pair("q", query);
 
     let agent = ureq::AgentBuilder::new().redirects(0).build();
-    let response = agent
-        .get(search_url.as_str())
-        .call()
-        .map_err(Box::new)?;
+    let response = agent.get(search_url.as_str()).call().map_err(Box::new)?;
 
     if (300..400).contains(&response.status())
         && let Some(location) = response.header("Location")
@@ -84,13 +82,10 @@ pub fn resolve_search_url(query: &str) -> Result<String, GoodreadsError> {
     Err(GoodreadsError::SearchInconclusive(query.to_string()))
 }
 
-pub fn fetch_from_goodreads(url: &str) -> Result<(String, Book), GoodreadsError> {
+pub fn fetch_from_goodreads(url: &str) -> Result<Book, GoodreadsError> {
     let goodreads_id = extract_goodreads_id(url)?;
 
-    let body = ureq::get(url)
-        .call()
-        .map_err(Box::new)?
-        .into_string()?;
+    let body = ureq::get(url).call().map_err(Box::new)?.into_string()?;
 
     // Extract JSON-LD data
     let json_ld_start = body
@@ -112,6 +107,7 @@ pub fn fetch_from_goodreads(url: &str) -> Result<(String, Book), GoodreadsError>
         .unwrap_or_else(|| "Unknown".into());
 
     let book = Book {
+        id: goodreads_id,
         title: decode_html_entities(&gr.name).into_owned(),
         author,
         pages: gr.number_of_pages,
@@ -126,7 +122,7 @@ pub fn fetch_from_goodreads(url: &str) -> Result<(String, Book), GoodreadsError>
         notes: Vec::new(),
     };
 
-    Ok((goodreads_id, book))
+    Ok(book)
 }
 
 #[cfg(test)]

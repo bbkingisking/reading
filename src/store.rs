@@ -1,10 +1,7 @@
-use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-
-use serde::ser::SerializeMap;
-use serde::Serialize;
 
 use crate::error::{AppError, Result};
 use crate::models::Book;
@@ -18,7 +15,7 @@ pub fn expand_tilde(path: &str) -> Result<PathBuf> {
     }
 }
 
-pub type Store = HashMap<String, Book>;
+pub type Store = Vec<Book>;
 
 pub fn load_store(path: &Path) -> Result<Store> {
     if !path.exists() {
@@ -28,31 +25,26 @@ pub fn load_store(path: &Path) -> Result<Store> {
     if data.trim().is_empty() {
         return Ok(Store::new());
     }
-    Ok(serde_saphyr::from_str(&data)?)
-}
-
-struct SortedEntries<'a>(Vec<(&'a String, &'a Book)>);
-
-impl<'a> Serialize for SortedEntries<'a> {
-    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let mut map = serializer.serialize_map(Some(self.0.len()))?;
-        for (k, v) in &self.0 {
-            map.serialize_entry(k, v)?;
+    let books: Store = serde_saphyr::from_str(&data)?;
+    let mut ids = HashSet::new();
+    for book in &books {
+        if book.id.is_empty() {
+            return Err(AppError::MissingBookId);
         }
-        map.end()
+        if !ids.insert(&book.id) {
+            return Err(AppError::AlreadyExists(book.id.clone()));
+        }
     }
+    Ok(books)
 }
 
 pub fn save_store(store: &Store, path: &Path) -> Result<()> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
-    let mut entries: Vec<(&String, &Book)> = store.iter().collect();
-    entries.sort_by_key(|entry| std::cmp::Reverse(entry.1.date_added));
-    let yaml = serde_saphyr::to_string(&SortedEntries(entries))?;
+    let mut entries: Vec<&Book> = store.iter().collect();
+    entries.sort_by(|a, b| b.date_added.cmp(&a.date_added).then(a.id.cmp(&b.id)));
+    let yaml = serde_saphyr::to_string(&entries)?;
     let tmp = path.with_extension("tmp");
     {
         let mut f = fs::File::create(&tmp)?;

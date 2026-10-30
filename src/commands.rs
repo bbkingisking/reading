@@ -1,6 +1,5 @@
 use chrono::{DateTime, NaiveDate, Utc};
 use clap::ValueEnum;
-use serde::Serialize;
 use url::Url;
 
 use crate::cli::{Command, UpdateField};
@@ -40,10 +39,14 @@ where
     F: Fn(&Book) -> Option<DateTime<Utc>>,
 {
     let value = field(book);
-    if let Some(since) = since && !value.is_some_and(|d| d >= since) {
+    if let Some(since) = since
+        && !value.is_some_and(|d| d >= since)
+    {
         return false;
     }
-    if let Some(until) = until && !value.is_some_and(|d| d < until) {
+    if let Some(until) = until
+        && !value.is_some_and(|d| d < until)
+    {
         return false;
     }
     true
@@ -68,13 +71,13 @@ pub fn run(command: Command, store: &str) -> Result<()> {
             } else {
                 return Err(AppError::InvalidAddQuery(query));
             };
-            let (key, book) = goodreads::fetch_from_goodreads(&url)?;
+            let book = goodreads::fetch_from_goodreads(&url)?;
 
-            if store.contains_key(&key) {
-                return Err(AppError::AlreadyExists(key));
+            if store.iter().any(|existing| existing.id == book.id) {
+                return Err(AppError::AlreadyExists(book.id));
             }
 
-            store.insert(key, book);
+            store.push(book);
             save_store(&store, &store_path)?;
         }
         Command::Done { id, rating } => {
@@ -85,7 +88,8 @@ pub fn run(command: Command, store: &str) -> Result<()> {
             }
             let mut store = load_store(&store_path)?;
             let book = store
-                .get_mut(&id)
+                .iter_mut()
+                .find(|book| book.id == id)
                 .ok_or_else(|| AppError::NotFound(id.clone()))?;
             book.status = Status::Read;
             book.date_finished = Some(Utc::now());
@@ -97,7 +101,8 @@ pub fn run(command: Command, store: &str) -> Result<()> {
         Command::Start { id } => {
             let mut store = load_store(&store_path)?;
             let book = store
-                .get_mut(&id)
+                .iter_mut()
+                .find(|book| book.id == id)
                 .ok_or_else(|| AppError::NotFound(id.clone()))?;
             book.status = Status::Reading;
             book.date_started = Some(Utc::now());
@@ -106,7 +111,8 @@ pub fn run(command: Command, store: &str) -> Result<()> {
         Command::Update { id, field, value } => {
             let mut store = load_store(&store_path)?;
             let book = store
-                .get_mut(&id)
+                .iter_mut()
+                .find(|book| book.id == id)
                 .ok_or_else(|| AppError::NotFound(id.clone()))?;
             match field {
                 UpdateField::Rating => {
@@ -140,7 +146,8 @@ pub fn run(command: Command, store: &str) -> Result<()> {
         Command::Abandon { id } => {
             let mut store = load_store(&store_path)?;
             let book = store
-                .get_mut(&id)
+                .iter_mut()
+                .find(|book| book.id == id)
                 .ok_or_else(|| AppError::NotFound(id.clone()))?;
             book.status = Status::Abandoned;
             save_store(&store, &store_path)?;
@@ -148,24 +155,15 @@ pub fn run(command: Command, store: &str) -> Result<()> {
         Command::Show { id } => {
             let store = load_store(&store_path)?;
             let book = store
-                .get(&id)
+                .iter()
+                .find(|book| book.id == id)
                 .ok_or_else(|| AppError::NotFound(id.clone()))?;
 
-            #[derive(Serialize)]
-            struct BookView<'a> {
-                id: &'a str,
-                #[serde(flatten)]
-                book: &'a Book,
-            }
-
-            println!(
-                "{}",
-                serde_saphyr::to_string(&BookView { id: &id, book })?
-            );
+            println!("{}", serde_saphyr::to_string(book)?);
         }
         Command::Share { id } => {
             let store = load_store(&store_path)?;
-            if !store.contains_key(&id) {
+            if !store.iter().any(|book| book.id == id) {
                 return Err(AppError::NotFound(id));
             }
             println!("https://www.goodreads.com/book/show/{}", id);
@@ -186,25 +184,28 @@ pub fn run(command: Command, store: &str) -> Result<()> {
             let started_until = started_until.as_deref().map(parse_date_until).transpose()?;
             let added_since = added_since.as_deref().map(parse_date_since).transpose()?;
             let added_until = added_until.as_deref().map(parse_date_until).transpose()?;
-            let mut books: Vec<(&String, &Book)> = store
+            let mut books: Vec<&Book> = store
                 .iter()
-                .filter(|(_, book)| match &status {
+                .filter(|book| match &status {
                     Some(filter) => *filter == book.status,
                     None => true,
                 })
-                .filter(|(_, book)| {
+                .filter(|book| {
                     filter_by_date_range(book, read_since, read_until, |b| b.date_finished)
                 })
-                .filter(|(_, book)| {
+                .filter(|book| {
                     filter_by_date_range(book, started_since, started_until, |b| b.date_started)
                 })
-                .filter(|(_, book)| {
+                .filter(|book| {
                     filter_by_date_range(book, added_since, added_until, |b| Some(b.date_added))
                 })
                 .collect();
-            books.sort_by_key(|entry| std::cmp::Reverse(entry.1.date_added));
-            for (id, book) in books {
-                println!("{} - {} - {} - {}", book.title, book.author, book.status, id);
+            books.sort_by_key(|entry| std::cmp::Reverse(entry.date_added));
+            for book in books {
+                println!(
+                    "{} - {} - {} - {}",
+                    book.title, book.author, book.status, book.id
+                );
             }
         }
     }
@@ -263,6 +264,7 @@ mod tests {
         date_finished: Option<DateTime<Utc>>,
     ) -> Book {
         Book {
+            id: "123".into(),
             title: "Title".to_string(),
             author: "Author".to_string(),
             pages: None,
@@ -281,7 +283,9 @@ mod tests {
     #[test]
     fn filter_by_date_range_passes_when_no_bounds_are_given() {
         let book = book_with_dates(dt("2026-01-15T00:00:00Z"), None, None);
-        assert!(filter_by_date_range(&book, None, None, |b| Some(b.date_added)));
+        assert!(filter_by_date_range(&book, None, None, |b| Some(
+            b.date_added
+        )));
     }
 
     #[test]

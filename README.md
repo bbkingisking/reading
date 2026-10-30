@@ -2,6 +2,11 @@
 
 A personal reading tracker with a YAML store.
 
+Books are stored as a top-level YAML list, with each book's Goodreads ID in its
+`id` field. The app uses `Vec<Book>` in memory and saves books by `date_added`
+descending (newest first), breaking ties by ID. Missing or duplicate IDs in a
+list are rejected.
+
 ## Zsh completions
 
 Build and install into `~/bin` (matching an alias that invokes `~/bin/reading`):
