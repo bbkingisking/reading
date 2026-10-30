@@ -28,7 +28,7 @@ pub fn load_store(path: &Path) -> Result<Store> {
     if data.trim().is_empty() {
         return Ok(Store::new());
     }
-    Ok(serde_json::from_str(&data)?)
+    Ok(serde_saphyr::from_str(&data)?)
 }
 
 struct SortedEntries<'a>(Vec<(&'a String, &'a Book)>);
@@ -52,11 +52,11 @@ pub fn save_store(store: &Store, path: &Path) -> Result<()> {
     }
     let mut entries: Vec<(&String, &Book)> = store.iter().collect();
     entries.sort_by(|a, b| b.1.date_added.cmp(&a.1.date_added));
-    let json = serde_json::to_string_pretty(&SortedEntries(entries))?;
+    let yaml = serde_saphyr::to_string(&SortedEntries(entries))?;
     let tmp = path.with_extension("tmp");
     {
         let mut f = fs::File::create(&tmp)?;
-        f.write_all(json.as_bytes())?;
+        f.write_all(yaml.as_bytes())?;
         f.sync_all()?;
     }
     fs::rename(&tmp, path)?;

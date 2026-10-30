@@ -4,7 +4,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 #[derive(Parser)]
 #[command(name = "reading", about = "Personal reading tracker", arg_required_else_help = true, version)]
 pub struct Cli {
-    /// Path to the JSON store file
+    /// Path to the YAML store file
     #[arg(long, short)]
     pub store: String,
 

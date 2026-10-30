@@ -12,7 +12,7 @@ pub enum GoodreadsError {
     #[error("HTTP error: {0}")]
     Http(#[from] Box<ureq::Error>),
     #[error("JSON error: {0}")]
-    Json(#[from] serde_json::Error),
+    Json(#[from] serde_saphyr::Error),
     #[error("invalid Goodreads URL: {0}")]
     InvalidUrl(String),
     #[error("could not extract Goodreads ID from URL: {0}")]
@@ -102,7 +102,7 @@ pub fn fetch_from_goodreads(url: &str) -> Result<(String, Book), GoodreadsError>
         .ok_or(GoodreadsError::JsonLdNotFound)?;
     let json_str = &body[json_start..json_start + json_end];
 
-    let gr: GoodreadsJsonLd = serde_json::from_str(json_str)?;
+    let gr: GoodreadsJsonLd = serde_saphyr::from_str(json_str)?;
 
     let author = gr
         .author
@@ -127,4 +127,19 @@ pub fn fetch_from_goodreads(url: &str) -> Result<(String, Book), GoodreadsError>
     };
 
     Ok((goodreads_id, book))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_goodreads_json_ld() {
+        let data = r#"{"@type":"Book","name":"A: Book","numberOfPages":123,"isbn":"0012345678","author":[{"name":"Author"}]}"#;
+        let book: GoodreadsJsonLd = serde_saphyr::from_str(data).unwrap();
+        assert_eq!(book.name, "A: Book");
+        assert_eq!(book.number_of_pages, Some(123));
+        assert_eq!(book.isbn.as_deref(), Some("0012345678"));
+        assert_eq!(book.author.unwrap()[0].name, "Author");
+    }
 }

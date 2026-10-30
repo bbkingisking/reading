@@ -6,8 +6,10 @@ use crate::goodreads;
 pub enum AppError {
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
-    #[error("JSON error: {0}")]
-    Json(#[from] serde_json::Error),
+    #[error("YAML error: {0}")]
+    Yaml(#[from] serde_saphyr::Error),
+    #[error("YAML serialization error: {0}")]
+    YamlSerialize(#[from] serde_saphyr::SerializeError),
     #[error("Goodreads error: {0}")]
     Goodreads(#[from] goodreads::GoodreadsError),
     #[error("book with id {0} already exists")]

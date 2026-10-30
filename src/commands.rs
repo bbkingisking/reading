@@ -157,7 +157,7 @@ pub fn run(cli: Cli) -> Result<()> {
 
             println!(
                 "{}",
-                serde_json::to_string_pretty(&BookView { id: &id, book })?
+                serde_saphyr::to_string(&BookView { id: &id, book })?
             );
         }
         Command::Share { id } => {

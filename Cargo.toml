@@ -6,7 +6,7 @@ edition = "2024"
 [dependencies]
 clap = { version = "4", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+serde-saphyr = "2"
 ureq = "2"
 chrono = { version = "0.4", features = ["serde"] }
 thiserror = "2"
