@@ -51,7 +51,7 @@ pub fn save_store(store: &Store, path: &Path) -> Result<()> {
         fs::create_dir_all(parent)?;
     }
     let mut entries: Vec<(&String, &Book)> = store.iter().collect();
-    entries.sort_by(|a, b| b.1.date_added.cmp(&a.1.date_added));
+    entries.sort_by_key(|entry| std::cmp::Reverse(entry.1.date_added));
     let yaml = serde_saphyr::to_string(&SortedEntries(entries))?;
     let tmp = path.with_extension("tmp");
     {

@@ -199,7 +199,7 @@ pub fn run(cli: Cli) -> Result<()> {
                     filter_by_date_range(book, added_since, added_until, |b| Some(b.date_added))
                 })
                 .collect();
-            books.sort_by(|a, b| b.1.date_added.cmp(&a.1.date_added));
+            books.sort_by_key(|entry| std::cmp::Reverse(entry.1.date_added));
             for (id, book) in books {
                 println!("{} - {} - {} - {}", book.title, book.author, book.status, id);
             }
