@@ -40,9 +40,6 @@ pub enum Command {
     Done {
         /// ID of the book (its Goodreads ID)
         id: String,
-        /// Optional rating (1-5)
-        #[arg(long)]
-        rating: Option<u8>,
     },
     /// Mark a book as currently reading
     Start {
@@ -102,9 +99,8 @@ pub enum Command {
 
 #[derive(Debug, Clone, ValueEnum)]
 pub enum UpdateField {
-    Rating,
-    Status,
     Notes,
+    Status,
     Title,
     Author,
     #[value(name = "publish-date")]

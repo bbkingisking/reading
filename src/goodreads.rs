@@ -118,7 +118,6 @@ pub fn fetch_from_goodreads(url: &str) -> Result<Book, GoodreadsError> {
         date_added: Utc::now(),
         date_started: None,
         date_finished: None,
-        rating: None,
         notes: Vec::new(),
     };
 

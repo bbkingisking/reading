@@ -36,6 +36,5 @@ pub struct Book {
     pub date_added: DateTime<Utc>,
     pub date_started: Option<DateTime<Utc>>,
     pub date_finished: Option<DateTime<Utc>>,
-    pub rating: Option<u8>,
     pub notes: Vec<String>,
 }

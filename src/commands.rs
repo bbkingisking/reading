@@ -80,12 +80,7 @@ pub fn run(command: Command, store: &str) -> Result<()> {
             store.push(book);
             save_store(&store, &store_path)?;
         }
-        Command::Done { id, rating } => {
-            if let Some(r) = rating
-                && !(1..=5).contains(&r)
-            {
-                return Err(AppError::InvalidRating(r));
-            }
+        Command::Done { id } => {
             let mut store = load_store(&store_path)?;
             let book = store
                 .iter_mut()
@@ -93,9 +88,6 @@ pub fn run(command: Command, store: &str) -> Result<()> {
                 .ok_or_else(|| AppError::NotFound(id.clone()))?;
             book.status = Status::Read;
             book.date_finished = Some(Utc::now());
-            if let Some(r) = rating {
-                book.rating = Some(r);
-            }
             save_store(&store, &store_path)?;
         }
         Command::Start { id } => {
@@ -115,21 +107,12 @@ pub fn run(command: Command, store: &str) -> Result<()> {
                 .find(|book| book.id == id)
                 .ok_or_else(|| AppError::NotFound(id.clone()))?;
             match field {
-                UpdateField::Rating => {
-                    let r: u8 = value
-                        .parse()
-                        .map_err(|_| AppError::InvalidRatingValue(value.clone()))?;
-                    if !(1..=5).contains(&r) {
-                        return Err(AppError::InvalidRating(r));
-                    }
-                    book.rating = Some(r);
+                UpdateField::Notes => {
+                    book.notes.push(value);
                 }
                 UpdateField::Status => {
                     book.status = Status::from_str(&value, true)
                         .map_err(|_| AppError::InvalidStatus(value.clone()))?;
-                }
-                UpdateField::Notes => {
-                    book.notes.push(value);
                 }
                 UpdateField::Title => {
                     book.title = value;
@@ -275,7 +258,6 @@ mod tests {
             date_added,
             date_started,
             date_finished,
-            rating: None,
             notes: vec![],
         }
     }

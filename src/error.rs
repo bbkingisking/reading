@@ -18,10 +18,6 @@ pub enum AppError {
     MissingBookId,
     #[error("book with id {0} not found")]
     NotFound(String),
-    #[error("invalid rating: {0} (must be 1-5)")]
-    InvalidRating(u8),
-    #[error("invalid rating value: '{0}'")]
-    InvalidRatingValue(String),
     #[error("invalid status: '{0}' (use unread/reading/read/abandoned)")]
     InvalidStatus(String),
     #[error("invalid date '{0}' (expected YYYY-MM-DD)")]
